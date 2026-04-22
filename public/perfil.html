@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mi Perfil - AgendaTuHogar</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-primary mb-4">
+        <div class="container">
+            <span class="navbar-brand">AgendaTuHogar</span>
+            <button onclick="cerrarSesion()" class="btn btn-outline-light btn-sm">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow p-4">
+                    <h3>Mi Perfil</h3>
+                    <hr>
+                    <form id="formPerfil">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" id="nombre" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Correo Electrónico</label>
+                            <input type="email" id="email" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Rol</label>
+                            <input type="text" id="rol" class="form-control" readonly disabled>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 mb-2">Actualizar Datos</button>
+                    </form>
+                    
+                    <button onclick="desactivarCuenta()" class="btn btn-danger btn-sm w-100 mt-4">Desactivar mi cuenta</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. Verificar si hay sesión al cargar la página
+        const token = localStorage.getItem('token');
+        const usuarioLocal = JSON.parse(localStorage.getItem('usuario'));
+
+        if (!token || !usuarioLocal) {
+            window.location.href = 'index.html';
+        }
+
+        // 2. Rellenar los campos con los datos guardados
+        document.getElementById('nombre').value = usuarioLocal.nombre;
+        document.getElementById('email').value = usuarioLocal.email || ''; 
+        document.getElementById('rol').value = usuarioLocal.rol;
+
+        // 3. Función para Actualizar Perfil
+        document.getElementById('formPerfil').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre').value;
+            const email = document.getElementById('email').value;
+
+            const res = await fetch('/api/auth/perfil', {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-auth-token': token // Enviamos el carnet de identidad
+                },
+                body: JSON.stringify({ nombre, email })
+            });
+
+            const data = await res.json();
+            alert(data.msg);
+            
+            if (res.ok) {
+                // Actualizamos el nombre en el localstorage para que persista
+                usuarioLocal.nombre = nombre;
+                localStorage.setItem('usuario', JSON.stringify(usuarioLocal));
+            }
+        });
+
+        // 4. Función para Desactivar Cuenta
+        async function desactivarCuenta() {
+            if (!confirm('¿Estás seguro? No podrás iniciar sesión hasta que un admin te reactive.')) return;
+
+            const res = await fetch('/api/auth/desactivar', {
+                method: 'DELETE',
+                headers: { 'x-auth-token': token }
+            });
+
+            const data = await res.json();
+            alert(data.msg);
+            cerrarSesion();
+        }
+
+        function cerrarSesion() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
