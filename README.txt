@@ -1,1 +1,2 @@
 Crear carpeta "AgendaTuHogar" luego abrir terminal en la carpeta (se debe de tener NODE.JS instalado previamente) Se ejecuta "npm init -y" y luego se instala las dependencias "npm install express mysql2 bcrypt dotenv cors" después de instalar las dependencias se instala una herramienta de desarrollo para conectar al servidor "npm install --save-dev nodemon", Se crea la base de datos desde MySQL en XAMPP
+Se debe de crear por aparte la base de datos (No se tiene completa) con el nombre de "inmobiliaria_db"
