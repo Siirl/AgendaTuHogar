@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Publicar Inmueble - AgendaTuHogar</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/estilos.css">
+    <style>
+        .foto-wrapper { position: relative; display: inline-block; }
+        .btn-borrar-foto {
+            position: absolute; top: -5px; right: -5px;
+            background: red; color: white; border: none;
+            border-radius: 50%; width: 20px; height: 20px;
+            font-size: 12px; line-height: 1; cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div id="main-nav"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/navbar.js"></script>
+
+    <div class="container mt-5">
+        <div class="card shadow p-4">
+            <h2 id="form-title">Publicar nuevo inmueble</h2>
+            <form id="formPublicar" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label>Título del anuncio</label>
+                    <input type="text" id="titulo" name="titulo" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label>Descripción</label>
+                    <textarea id="descripcion" name="descripcion" class="form-control"></textarea>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label>Precio</label>
+                        <input type="number" id="precio" name="precio" class="form-control" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Tipo</label>
+                        <select id="tipo" name="tipo" class="form-select">
+                            <option value="venta">Venta</option>
+                            <option value="arriendo">Arriendo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label>Dirección</label>
+                    <input type="text" id="direccion" name="direccion" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Galería de Fotos</label>
+                    
+                    <div id="galeria-actual" class="d-flex flex-wrap gap-2 mb-3"></div>
+
+                    <label class="form-label small text-muted d-block">Subir fotos nuevas:</label>
+                    <input type="file" id="imagenes" name="imagenes" class="form-control" accept="image/*" multiple onchange="previsualizar(event)">
+                    
+                    <div id="preview-container" class="d-flex flex-wrap gap-2 mt-2"></div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" id="btnSubmit">Publicar Ahora</button>
+            </form>
+        </div>
+    </div>
+
+<script>
+    if (!localStorage.getItem('token')) {
+        window.location.href = 'index.html';
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const editId = urlParams.get('edit');
+    const token = localStorage.getItem('token');
+
+    if (editId) {
+        document.getElementById('form-title').innerText = 'Editar Publicación';
+        document.getElementById('btnSubmit').innerText = 'Guardar Cambios';
+        
+        async function cargarParaEditar() {
+            try {
+                // 1. Cargar datos del inmueble
+                const res = await fetch('/api/inmuebles/mis-inmuebles', {
+                    headers: { 'x-auth-token': token }
+                });
+                const inmuebles = await res.json();
+                const inm = inmuebles.find(i => i.id == editId);
+
+                if (inm) {
+                    document.getElementById('titulo').value = inm.titulo;
+                    document.getElementById('descripcion').value = inm.descripcion;
+                    document.getElementById('direccion').value = inm.direccion;
+                    document.getElementById('precio').value = inm.precio;
+                    document.getElementById('tipo').value = inm.tipo;
+                }
+
+                // 2. Cargar fotos de la galería actual (HU0203 Extendida)
+                const resFotos = await fetch(`/api/inmuebles/${editId}/imagenes`);
+                const fotos = await resFotos.json();
+                const divGaleria = document.getElementById('galeria-actual');
+                
+                fotos.forEach(foto => {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'foto-wrapper';
+                    wrap.id = `foto-db-${foto.id}`;
+                    wrap.innerHTML = `
+                        <img src="/uploads/${foto.ruta_imagen}" class="rounded border" style="width:100px; height:100px; object-fit:cover;">
+                        <button type="button" class="btn-borrar-foto" onclick="borrarFotoServidor(${foto.id})">×</button>
+                    `;
+                    divGaleria.appendChild(wrap);
+                });
+
+            } catch (error) {
+                console.error("Error cargando datos:", error);
+            }
+        }
+        cargarParaEditar();
+    }
+
+    // Función para borrar fotos que ya están en el servidor
+    async function borrarFotoServidor(idImagen) {
+        if (!confirm('¿Deseas eliminar esta foto de la galería?')) return;
+        
+        try {
+            const res = await fetch(`/api/inmuebles/imagen/${idImagen}`, {
+                method: 'DELETE',
+                headers: { 'x-auth-token': token }
+            });
+            if (res.ok) {
+                document.getElementById(`foto-db-${idImagen}`).remove();
+            }
+        } catch (error) {
+            alert("No se pudo eliminar la imagen.");
+        }
+    }
+
+    document.getElementById('formPublicar').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!token) return alert("Debes iniciar sesión");
+
+        const formData = new FormData(e.target);
+        const url = editId ? `/api/inmuebles/${editId}` : '/api/inmuebles';
+        const method = editId ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'x-auth-token': token },
+                body: formData 
+            });
+
+            const data = await res.json();
+            alert(data.msg);
+
+            if (res.ok) {
+                window.location.href = 'dashboard.html';
+            }
+        } catch (error) {
+            console.error("Error al procesar:", error);
+            alert("Hubo un error en el servidor");
+        }
+    });
+
+    function previsualizar(event) {
+        const container = document.getElementById('preview-container');
+        container.innerHTML = ''; 
+        const files = event.target.files;
+        
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.style.width = '100px';
+                img.style.height = '100px';
+                img.style.objectFit = 'cover';
+                img.classList.add('rounded', 'border');
+                container.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+</script>
+</body>
+</html>

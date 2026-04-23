@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mis Inmuebles - AgendaTuHogar</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body class="bg-light">
+    <div id="main-nav"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/navbar.js"></script>
+
+    <div class="container mt-4">
+        <h3 class="mb-4">Mis Publicaciones</h3>
+        <div id="listaInmuebles" class="row">
+            </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'index.html';
+        }
+
+        async function cargarInmuebles() {
+            try {
+                const res = await fetch('/api/inmuebles/mis-inmuebles', { 
+                    headers: { 'x-auth-token': token }
+                });
+                const inmuebles = await res.json();
+                
+                const contenedor = document.getElementById('listaInmuebles');
+                contenedor.innerHTML = '';
+
+                // Usamos for...of para manejar las peticiones de galería de forma asíncrona
+                for (const inm of inmuebles) {
+                    const botonTexto = inm.estado === 'reservado' ? 'Quitar Reserva' : 'Reservar';
+                    const nuevoEstado = inm.estado === 'reservado' ? 'disponible' : 'reservado';
+                    const colorBoton = inm.estado === 'reservado' ? 'btn-secondary' : 'btn-warning';
+                    const opacidad = inm.estado === 'reservado' ? 'opacity: 0.7;' : '';
+
+                    // 1. Obtener la galería de este inmueble
+                    const resFotos = await fetch(`/api/inmuebles/${inm.id}/imagenes`);
+                    const galeria = await resFotos.json();
+
+                    // 2. Construir items del carrusel
+                    let itemsHtml = `
+                        <div class="carousel-item active">
+                            <img src="/uploads/${inm.imagen}" class="d-block w-100" style="height: 200px; object-fit: cover;">
+                        </div>
+                    `;
+
+                    galeria.forEach(foto => {
+                        itemsHtml += `
+                            <div class="carousel-item">
+                                <img src="/uploads/${foto.ruta_imagen}" class="d-block w-100" style="height: 200px; object-fit: cover;">
+                            </div>
+                        `;
+                    });
+
+                    // 3. Generar la tarjeta con el carrusel
+                    contenedor.innerHTML += `
+                        <div class="col-md-4 mb-4" style="${opacidad}">
+                            <div class="card shadow-sm border-0 h-100">
+                                
+                                <div id="carrusel-${inm.id}" class="carousel slide" data-bs-ride="carousel">
+                                    <div class="carousel-inner">
+                                        ${itemsHtml}
+                                    </div>
+                                    ${galeria.length > 0 ? `
+                                        <button class="carousel-control-prev" type="button" data-bs-target="#carrusel-${inm.id}" data-bs-slide="prev">
+                                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                        </button>
+                                        <button class="carousel-control-next" type="button" data-bs-target="#carrusel-${inm.id}" data-bs-slide="next">
+                                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                        </button>
+                                    ` : ''}
+                                </div>
+
+                                <div class="card-body">
+                                    <h5 class="card-title">${inm.titulo}</h5>
+                                    <p class="mb-2"><strong>Estado:</strong> <span class="badge ${inm.estado === 'disponible' ? 'bg-success' : 'bg-danger'}">${inm.estado}</span></p>
+                                    <div class="d-flex flex-wrap gap-2 mt-3">
+                                        <button class="btn ${colorBoton} btn-sm flex-grow-1" onclick="cambiarEstado(${inm.id}, '${nuevoEstado}')">${botonTexto}</button>
+                                        <a href="publicar.html?edit=${inm.id}" class="btn btn-primary btn-sm flex-grow-1">Editar</a>
+                                        <button class="btn btn-danger btn-sm flex-grow-1" onclick="eliminar(${inm.id})">Eliminar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error("Error al cargar inmuebles:", error);
+            }
+        }
+
+        async function cambiarEstado(id, nuevoEstado) {
+            const res = await fetch(`/api/inmuebles/${id}/estado`, {
+                method: 'PATCH',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-auth-token': token 
+                },
+                body: JSON.stringify({ estado: nuevoEstado })
+            });
+            const data = await res.json();
+            alert(data.msg);
+            cargarInmuebles();
+        }
+
+        async function eliminar(id) {
+            if(!confirm('¿Seguro que deseas eliminar esta publicación?')) return;
+            const res = await fetch(`/api/inmuebles/${id}`, {
+                method: 'DELETE',
+                headers: { 'x-auth-token': token }
+            });
+            cargarInmuebles();
+        }
+
+        cargarInmuebles();
+    </script>
+</body>
+</html>

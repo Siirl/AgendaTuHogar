@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalles del Inmueble - AgendaTuHogar</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body class="bg-light">
+    <div id="main-nav"></div>
+
+    <div class="container mt-5">
+        <div id="detalle-inmueble" class="row">
+            </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/navbar.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const idInmueble = urlParams.get('id');
+
+        async function cargarDetalle() {
+            if (!idInmueble) return window.location.href = 'explorar.html';
+
+            try {
+                // 1. Obtener datos del inmueble
+                const res = await fetch(`/api/inmuebles`);
+                const inmuebles = await res.json();
+                const inm = inmuebles.find(i => i.id == idInmueble);
+
+                if (!inm) {
+                    document.getElementById('detalle-inmueble').innerHTML = "<h2>Inmueble no encontrado</h2>";
+                    return;
+                }
+
+                // 2. Obtener galería
+                const resFotos = await fetch(`/api/inmuebles/${idInmueble}/imagenes`);
+                const galeria = await resFotos.json();
+
+                // 3. Preparar Carrusel
+                let itemsHtml = `
+                    <div class="carousel-item active">
+                        <img src="/uploads/${inm.imagen}" class="d-block w-100 rounded shadow" style="height: 450px; object-fit: cover;">
+                    </div>`;
+                
+                galeria.forEach(f => {
+                    itemsHtml += `
+                        <div class="carousel-item">
+                            <img src="/uploads/${f.ruta_imagen}" class="d-block w-100 rounded shadow" style="height: 450px; object-fit: cover;">
+                        </div>`;
+                });
+
+                // 4. Renderizar contenido
+                document.getElementById('detalle-inmueble').innerHTML = `
+                    <div class="col-md-7">
+                        <div id="carouselDetalle" class="carousel slide" data-bs-ride="carousel">
+                            <div class="carousel-inner">${itemsHtml}</div>
+                            <button class="carousel-control-prev" type="button" data-bs-target="#carouselDetalle" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon"></span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#carouselDetalle" data-bs-slide="next">
+                                <span class="carousel-control-next-icon"></span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="card p-4 border-0 shadow-sm">
+                            <span class="badge bg-primary w-25 mb-2">${inm.tipo.toUpperCase()}</span>
+                            <h1 class="h2 fw-bold">${inm.titulo}</h1>
+                            <p class="text-muted"><i class="bi bi-geo-alt"></i> ${inm.direccion}</p>
+                            <hr>
+                            <h3 class="text-success fw-bold mb-4">$${Number(inm.precio).toLocaleString()}</h3>
+                            <p class="text-secondary">${inm.descripcion || 'Sin descripción disponible.'}</p>
+                            
+                            <div class="d-grid gap-2 mt-4">
+                                <button class="btn btn-primary btn-lg" onclick="irAReservar(${inm.id})">Reservar Ahora</button>
+                                <button class="btn btn-outline-dark">Contactar Propietario</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function irAReservar(id) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert("Debes iniciar sesión para realizar una reserva.");
+                window.location.href = 'index.html';
+            } else {
+                window.location.href = `reservar.html?id=${id}`;
+            }
+        }
+
+        cargarDetalle();
+    </script>
+</body>
+</html>

@@ -8,9 +8,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- NUEVO: Rutas de la aplicación ---
+// --- Rutas de la aplicación ---
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use(express.static('public'));
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/inmuebles', require('./routes/inmuebleRoutes'));
+
 app.get('/', (req, res) => {
     res.send('Servidor de Inmobiliaria funcionando 🚀');
 });
